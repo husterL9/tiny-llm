@@ -1,6 +1,7 @@
 import mlx.core as mx
 from .basics import softmax, linear
 import math
+# 这里的query、key、value应该分别对应的是Q、K、V
 def scaled_dot_product_attention_simple(
     query: mx.array,
     key: mx.array,
@@ -48,8 +49,15 @@ class SimpleMultiHeadAttention:
         wv: mx.array,
         wo: mx.array,
     ):
-        pass
-
+        self.hidden_size=hidden_size
+        self.num_heads=num_heads
+        self.wq=wq
+        self.wk=wk
+        self.wv=wv
+        self.wo=wo
+# 这里的query、key、value应该分别对应的是输入X
+# API 设计成 mha(query, key, value)，是为了支持 Self-Attention 和 Cross-Attention。
+# Self-Attention 只是其中一种特例，它把三者都设为同一个 X。
     def __call__(
         self,
         query: mx.array,
@@ -57,7 +65,37 @@ class SimpleMultiHeadAttention:
         value: mx.array,
         mask: mx.array | None = None,
     ) -> mx.array:
-        pass
+        Q=linear(query,self.wq)  # (N.., L, H*D) 
+        K=linear(key,self.wk)
+        V=linear(value,self.wv)
+        head_dim = self.hidden_size //self.num_heads
+        new_shape = Q.shape[:-1] + (self.num_heads, head_dim)
+        Q = Q.reshape(new_shape)
+        K = K.reshape(new_shape)
+        V = V.reshape(new_shape)
+        perm = list(range(len(Q.shape)))
+        # 最后两个是 (-3=L), (-2=H), (-1=D)
+        perm[-3], perm[-2] = perm[-2], perm[-3]
+        Q = mx.transpose(Q, perm)
+        K = mx.transpose(K, perm)
+        V = mx.transpose(V, perm)
+        if mask is not None:
+            # 先加一个 batch 维度，再 broadcast
+                mask_shape=mask.shape
+                target_shape = Q.shape[:-2] + mask_shape  # (*batch, H, L, L)
+                need_ones = len(target_shape) - mask.ndim
+                pad_shape = (1,) * need_ones + mask.shape
+                mask = mask.reshape(pad_shape)
+                mask = mx.broadcast_to(mask, target_shape)
+        O= scaled_dot_product_attention_simple(Q,K,V,mask=mask)
+        print(O.shape)
+        perm_O=list(range(len(O.shape)))
+        perm_O[-3],perm_O[-2]=perm_O[-2],perm_O[-3]
+        O=mx.transpose(O,perm_O)
+        O=O.reshape(O.shape[:-2] + (head_dim * self.num_heads,))
+        O=mx.matmul(O,mx.transpose(self.wo))
+        return O
+
 
 
 def causal_mask(L: int, S: int, dtype: mx.Dtype) -> mx.array:

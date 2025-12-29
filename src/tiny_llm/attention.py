@@ -9,35 +9,41 @@ def scaled_dot_product_attention_simple(
     scale: float | None = None,
     mask: mx.array | None = None,
 ) -> mx.array:
+    # shape=(*BATCH_SIZE, DIM_L, DIM_D)
     shape=query.shape
     dim_l=shape[-2]
     dim_d=shape[-1]
-    batch_size=math.prod(shape[:-2])
+    # batch_size=math.prod(shape[:-2])
     if scale is None:
         scale = 1.0 / (dim_d ** 0.5)
+    scores=mx.matmul(query,mx.swapaxes(key, -1, -2))*scale
     if mask is None:
-        mask = mx.zeros((*shape[:-2], dim_l, dim_l), dtype=query.dtype)
-
+        pass
+    else:
+        scores+=mask
+        
     # flatten Q/K/V
-    q_flat = query.reshape(batch_size, dim_l, dim_d)
-    k_flat = key.reshape(batch_size, dim_l, dim_d)
-    v_flat = value.reshape(batch_size, dim_l, dim_d)
-    mask_flat = mask.reshape(batch_size, dim_l, dim_l)
-
-    o_flat = mx.zeros((batch_size, dim_l, dim_d), dtype=query.dtype)
+    # q_flat = query.reshape(batch_size, dim_l, dim_d)
+    # k_flat = key.reshape(batch_size, dim_l, dim_d)
+    # v_flat = value.reshape(batch_size, dim_l, dim_d)
+    # mask_flat = mask.reshape(batch_size, dim_l, dim_l)
+    # o_flat = mx.zeros((batch_size, dim_l, dim_d), dtype=query.dtype)
 
     # 遍历batch，计算每一个[l,d]*[l,d].transpose得到P矩阵l*l,然后对P矩阵进行缩放
     # 然后再softmax操作
     # 得到S矩阵，S*V得到O矩阵
-    for i in range(batch_size):
-        p_i=mx.matmul(q_flat[i],k_flat[i].T)
-        p_i*=scale
-        p_i+=mask_flat[i]
-        s_i = mx.softmax(p_i, axis=-1)
-        o_i=mx.matmul(s_i,v_flat[i])
-        o_flat[i] = o_i
-    output = o_flat.reshape(*shape)
-    return output
+    # for i in range(batch_size):
+    #     p_i=mx.matmul(q_flat[i],k_flat[i].T)
+    #     p_i*=scale
+    #     p_i+=mask_flat[i]
+    #     s_i = mx.softmax(p_i, axis=-1)
+    #     o_i=mx.matmul(s_i,v_flat[i])
+    #     o_flat[i] = o_i
+    # output = o_flat.reshape(*shape)
+
+    attention_map=mx.softmax(scores,-1)
+    attention=mx.matmul(attention_map,value)
+    return attention
 
 class SimpleMultiHeadAttention:
     def __init__(
@@ -110,6 +116,25 @@ def scaled_dot_product_attention_grouped(
     mask: mx.array | str | None = None,
 ) -> mx.array:
     pass
+    # q_shape = (N.., H_q, L, D)
+    # kv_shape = (N.., H, S, D)
+    q_shape=query.shape
+    H_q=q_shape[-3]
+    L= q_shape[-2]
+    D= q_shape[-1]
+    kv_shape=key.shape
+    H=kv_shape[-3]
+    S= kv_shape[-2]
+    prefix = q_shape[:-3]
+    assert H_q % H == 0, f"H_kv must divide H_q, got H_q={H_q}, H_kv={H}"
+    n_repeat=H_q//H
+    q_grouped=query.reshape(*prefix,H,n_repeat,L,D)
+    k_broad=key.reshape(*prefix,H,1,S,D)
+    v_broad=value.reshape(*prefix,H,1,S,D)
+    mask_broad=mask.reshape(*prefix,H,n_repeat,L,S)
+    attention=scaled_dot_product_attention_simple(q_grouped,k_broad,v_broad,scale,mask_broad)
+    attention=attention.reshape(*prefix,H*n_repeat,L,D)
+    return attention
 
 
 def flash_attention(

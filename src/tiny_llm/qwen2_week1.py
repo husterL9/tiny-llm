@@ -24,14 +24,53 @@ class Qwen2MultiHeadAttention:
         max_seq_len: int = 32768,
         theta: int = 1000000,
     ):
-        pass
+        self.hidden_size=hidden_size
+        self.num_heads=num_heads
+        self.num_kv_heads=num_kv_heads
+        self.wq=wq
+        self.wk=wk
+        self.wv=wv
+        self.wo=wo
+        self.bq=bq
+        self.bk=bk
+        self.bv=bv
+        self.max_seq_len=max_seq_len
+        self.theta=theta
 
     def __call__(
         self,
         x: mx.array,
         mask: mx.array | str | None = None,
     ) -> mx.array:
-        pass
+        # Q:(B,L,E)
+        Q=linear(x,self.wq,self.bq)
+        K=linear(x,self.wk,self.bk)
+        V=linear(x,self.wv,self.bv)
+        D=self.hidden_size//self.num_heads
+        q_shape=Q.shape
+        k_shape=K.shape
+        E=q_shape[-1]
+        L=q_shape[-2]
+        S=k_shape[-2]
+        prefix=q_shape[:-2]
+        assert E % self.num_heads == 0, f"E={E} must be divisible by h={self.num_heads}"
+        # (B, L, h, d)
+        Q = Q.reshape(*prefix, L, self.num_heads, D)   
+        K = K.reshape(*prefix, S, self.num_kv_heads,D)  
+        V = V.reshape(*prefix, S, self.num_kv_heads, D)
+        rope = RoPE(D, self.max_seq_len, self.theta, traditional=False)
+        Q = rope(Q, offset=slice(0, L))
+        K=rope(K,offset=slice(0, L))
+        Q = mx.swapaxes(Q, -3, -2) 
+        K=mx.swapaxes(K,-3, -2)
+        V=mx.swapaxes(V,-3,-2)
+        # (N...,H*n_repeat,L,D)
+        attention= scaled_dot_product_attention_grouped(Q,K,V,mask=mask)
+        attention=mx.swapaxes(attention,-3,-2)
+        attention=attention.reshape(*prefix,L,E)
+        output=linear(attention, self.wo)
+        return output
+
 
 
 class Qwen2MLP:

@@ -124,7 +124,6 @@ def scaled_dot_product_attention_grouped(
     scale: float | None = None,
     mask: mx.array | str | None = None,
 ) -> mx.array:
-    pass
     # q_shape = (N.., H_q, L, D)
     # kv_shape = (N.., H, S, D)
     q_shape=query.shape

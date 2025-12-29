@@ -105,7 +105,16 @@ class SimpleMultiHeadAttention:
 
 
 def causal_mask(L: int, S: int, dtype: mx.Dtype) -> mx.array:
-    pass
+    offset = max(S - L, 0)
+
+    i = mx.arange(L).reshape((L, 1))  # (L,1)
+    j = mx.arange(S).reshape((1, S))  # (1,S)
+
+    allowed = j <= (i + offset)       # (L,S) boolean
+    neg_inf = mx.array(-mx.inf, dtype=dtype)
+    zero = mx.array(0.0, dtype=dtype)
+
+    return mx.where(allowed, zero, neg_inf)
 
 
 def scaled_dot_product_attention_grouped(
@@ -131,8 +140,17 @@ def scaled_dot_product_attention_grouped(
     q_grouped=query.reshape(*prefix,H,n_repeat,L,D)
     k_broad=key.reshape(*prefix,H,1,S,D)
     v_broad=value.reshape(*prefix,H,1,S,D)
-    mask_broad=mask.reshape(*prefix,H,n_repeat,L,S)
-    attention=scaled_dot_product_attention_simple(q_grouped,k_broad,v_broad,scale,mask_broad)
+    if mask is None:
+        # 默认不加 mask（等价于加 0）
+        pass
+    elif isinstance(mask, str):
+        if mask.lower() != "causal":
+            raise ValueError("mask string only supports 'causal'")
+        mask=causal_mask(L,S,dtype=query.dtype)
+        mask = mask.reshape((1,) * (q_grouped.ndim - 2) + (L, S))
+    else : 
+        mask=mask.reshape(*prefix,H,n_repeat,L,S)
+    attention=scaled_dot_product_attention_simple(q_grouped,k_broad,v_broad,scale,mask)
     attention=attention.reshape(*prefix,H*n_repeat,L,D)
     return attention
 

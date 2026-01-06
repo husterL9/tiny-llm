@@ -77,16 +77,29 @@ class Qwen2MLP:
     def __init__(
         self,
         dim: int,
+        #intermediate_size (dimension of the hidden layer in MLP)
         hidden_dim: int,
+        # w_gate/w_up: I x E
         w_gate: mx.array,
         w_up: mx.array,
+        # w_down: E x I
         w_down: mx.array,
     ):
-        pass
+        self.dim=dim
+        self.hidden_dim=hidden_dim
+        self.w_gate=w_gate
+        self.w_up=w_up
+        self.w_down=w_down
 
     def __call__(self, x: mx.array) -> mx.array:
-        pass
-
+        # x: N.. x L x E
+        x_gate=mx.matmul(x,mx.transpose(self.w_gate,[-1,-2]))
+        # N.. x L x I
+        silu_x_gate=silu(x_gate)
+        x_up=mx.matmul(x,mx.transpose(self.w_up,[-1,-2]))
+        x_intermediate=x_up*silu_x_gate
+        output=mx.matmul(x_intermediate,mx.transpose(self.w_down,[-1,-2]))
+        return output
 
 class Qwen2TransformerBlock:
     def __init__(

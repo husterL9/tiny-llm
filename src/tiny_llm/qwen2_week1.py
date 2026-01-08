@@ -6,7 +6,7 @@ from .positional_encoding import RoPE
 from typing import Any
 from .embedding import Embedding
 from .quantize import dequantize_linear
-
+from typing import List
 
 class Qwen2MultiHeadAttention:
     def __init__(
@@ -36,7 +36,7 @@ class Qwen2MultiHeadAttention:
         self.bv=bv
         self.max_seq_len=max_seq_len
         self.theta=theta
-
+        self.rope=RoPE(self.hidden_size//self.num_heads, self.max_seq_len, self.theta, traditional=False)
     def __call__(
         self,
         x: mx.array,
@@ -58,9 +58,8 @@ class Qwen2MultiHeadAttention:
         Q = Q.reshape(*prefix, L, self.num_heads, D)   
         K = K.reshape(*prefix, S, self.num_kv_heads,D)  
         V = V.reshape(*prefix, S, self.num_kv_heads, D)
-        rope = RoPE(D, self.max_seq_len, self.theta, traditional=False)
-        Q = rope(Q, offset=slice(0, L))
-        K=rope(K,offset=slice(0, L))
+        Q = self.rope(Q, offset=slice(0, L))
+        K=self.rope(K,offset=slice(0, L))
         Q = mx.swapaxes(Q, -3, -2) 
         K=mx.swapaxes(K,-3, -2)
         V=mx.swapaxes(V,-3,-2)
@@ -144,10 +143,67 @@ class Qwen2TransformerBlock:
 
 class Qwen2ModelWeek1:
     def __init__(self, mlx_model: Any):
-        pass
-
+        # print(mlx_model.args)
+        # print("\n",mlx_model.model)
+        # print("\n",vars(mlx_model))
+        # print(type(mlx_model))
+        args=mlx_model.args
+        model=mlx_model.model
+        self.embed_tokens_weight=dequantize_linear(model.embed_tokens)
+        self.embedding=Embedding(args.vocab_size,args.hidden_size,self.embed_tokens_weight)
+        self.layers_inner:List[Qwen2TransformerBlock] = []
+        for i in range(mlx_model.args.num_hidden_layers):
+            current_layer=model.layers[i]
+            wq=dequantize_linear(current_layer.self_attn.q_proj)
+            wk=dequantize_linear(current_layer.self_attn.k_proj)
+            wv=dequantize_linear(current_layer.self_attn.v_proj)
+            wo=dequantize_linear(current_layer.self_attn.o_proj)
+            w_gate=dequantize_linear(current_layer.mlp.gate_proj)
+            w_up=dequantize_linear(current_layer.mlp.up_proj)
+            w_down=dequantize_linear(current_layer.mlp.down_proj)
+            w_input_layernorm=current_layer.input_layernorm.weight
+            w_post_attention_layernorm=current_layer.post_attention_layernorm.weight
+            layer=Qwen2TransformerBlock(args.num_attention_heads,
+                                        args.num_key_value_heads,
+                                        args.hidden_size,
+                                        args.intermediate_size,
+                                        args.rms_norm_eps,
+                                        wq,
+                                        wk,
+                                        wv,
+                                        wo,
+                                        current_layer.self_attn.q_proj.bias,
+                                        current_layer.self_attn.k_proj.bias,
+                                        current_layer.self_attn.v_proj.bias,
+                                        w_gate,
+                                        w_up,
+                                        w_down,
+                                        w_input_layernorm,
+                                        w_post_attention_layernorm,
+                                        args.max_position_embeddings,
+                                        args.rope_theta                        
+                                        )
+            self.layers_inner.append(layer)
+        self.rMS_norm = RMSNorm(
+            args.hidden_size,
+            weight=model.norm.weight,
+            eps=args.rms_norm_eps,
+        )
+        if args.tie_word_embeddings is True:
+            self.w_lm_head = None
+        else:
+            self.w_lm_head = dequantize_linear(mlx_model.lm_head)
+        
     def __call__(
         self,
         inputs: mx.array,
     ) -> mx.array:
-        pass
+        h=self.embedding(inputs)
+        for _, transformer_block in enumerate(self.layers_inner):
+            h = transformer_block(h,mask="causal")
+        h=self.rMS_norm(h)
+        if self.w_lm_head is not None:
+            return linear(h, self.w_lm_head)
+        else:
+            return self.embedding.as_linear(h)
+

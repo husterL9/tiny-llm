@@ -12,18 +12,23 @@ def simple_generate(
     sampler: Callable[[mx.array], mx.array] | None,
 ) -> str:
     def _step(model, y):
-        output_logits=model(y)
+        output_logits=model(y[None])
+        # y: N.. x S, where in week 1 we don't implement batch, so N.. = 1
+        # output_logits: N.. x S x vocab_size
         logits = output_logits[:, -1, :]
+        logprobs= logits - mx.logsumexp(logits, keepdims=True)
         # (1,1)
-        next_token = mx.argmax(logits, axis=-1,keepdims=True)
+        if sampler is  None:  
+            next_token = mx.argmax(logits, axis=-1)
+        else:
+            next_token=sampler(logprobs)
         return next_token 
     detokenizer = tokenizer.detokenizer
     detokenizer.reset()
     inputs=mx.array(tokenizer.encode(prompt))
-    inputs = inputs[None, :]
     while(True):
        next_token = _step(model,inputs)
-       inputs = mx.concatenate([inputs, next_token],axis=1)
+       inputs = mx.concat([inputs, next_token])
        if next_token.item()==tokenizer.eos_token_id:
            break
        detokenizer.add_token(next_token.item())

@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PDM: test week2 day1 (debugpy)",
+      "type": "shell",
+      "command": "pdm",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "debugpy",
+        "--listen",
+        "5678",
+        "--wait-for-client",
+        "scripts/dev-tools.py",
+        "test",
+        "--week",
+        "2",
+        "--day",
+        "1"
+      ],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "debugpy",
+        "pattern": [
+          {
+            "regexp": "^(.*)$",
+            "kind": "file",
+            "file": 1,
+            "message": 1
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": ".*"
+        }
+      }
+    }
+  ]
+}

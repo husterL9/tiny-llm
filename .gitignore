@@ -176,3 +176,5 @@ cython_debug/
 *.dylib
 *.metallib
 .DS_Store
+learn.*
+.vscode/

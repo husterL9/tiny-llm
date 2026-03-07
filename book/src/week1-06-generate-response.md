@@ -35,6 +35,7 @@ pick the token with the highest probability.
 
 - 📚 [The Log-Sum-Exp Trick](https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/)
 - 📚 [Decoding Strategies in Large Language Models](https://mlabonne.github.io/blog/posts/2023-06-07-Decoding_strategies.html)
+- 📚 [Tokenizer definition](https://huggingface.co/docs/transformers/main/en/main_classes/tokenizer)
 
 With the `_step` function implemented, you can now implement the full `simple_generate` function. The function will
 first prefill the model with the prompt. As the prompt is a string, you need to first convert it to a list of tokens
@@ -59,9 +60,9 @@ You can test your implementation by running the following command:
 
 ```bash
 # Download the models if you haven't done so
-huggingface-cli download Qwen/Qwen2-0.5B-Instruct-MLX
-huggingface-cli download Qwen/Qwen2-1.5B-Instruct-MLX
-huggingface-cli download Qwen/Qwen2-7B-Instruct-MLX
+hf download Qwen/Qwen2-0.5B-Instruct-MLX
+hf download Qwen/Qwen2-1.5B-Instruct-MLX
+hf download Qwen/Qwen2-7B-Instruct-MLX
 # Run the tests
 pdm run main --solution tiny_llm --loader week1 --model qwen2-0.5b \
   --prompt "Give me a short introduction to large language model"
@@ -75,4 +76,3 @@ It should gives you a reasonable response of "what is a large language model". R
 `--solution ref` to use the reference solution.
 
 {{#include copyright.md}}
-

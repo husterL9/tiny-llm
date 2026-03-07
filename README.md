@@ -26,7 +26,7 @@ You may join skyzh's Discord server and study with the tiny-llm community.
 
 ## Roadmap
 
-Week 1 is complete. Week 2 is in progress.
+Week 1 and 2 is complete. Week 3 is in progress.
 
 | Week + Chapter | Topic                                                       | Code | Test | Doc |
 | -------------- | ----------------------------------------------------------- | ---- | ---- | --- |
@@ -38,10 +38,10 @@ Week 1 is complete. Week 2 is in progress.
 | 1.6            | Generate Responses (aka Decoding)                           | ✅    | ✅   | ✅  |
 | 1.7            | Sampling                                                    | ✅    | ✅   | ✅  |
 | 2.1            | Key-Value Cache                                             | ✅    | ✅   | ✅  |
-| 2.2            | Quantized Matmul and Linear - CPU                           | ✅    | ✅   | 🚧  |
-| 2.3            | Quantized Matmul and Linear - GPU                           | ✅    | ✅   | 🚧  |
-| 2.4            | Flash Attention 2 - CPU                                     | ✅    | ✅   | 🚧  |
-| 2.5            | Flash Attention 2 - GPU                                     | ✅    | ✅   | 🚧  |
+| 2.2            | Quantized Matmul and Linear - CPU                           | ✅    | ✅   | ✅  |
+| 2.3            | Quantized Matmul and Linear - GPU                           | ✅    | ✅   | ✅  |
+| 2.4            | Flash Attention 2 - CPU                                     | ✅    | ✅   | ✅  |
+| 2.5            | Flash Attention 2 - GPU                                     | ✅    | ✅   | ✅  |
 | 2.6            | Continuous Batching                                         | ✅    | ✅   | ✅  |
 | 2.7            | Chunked Prefill                                             | ✅    | ✅   | ✅  |
 | 3.1            | Paged Attention - Part 1                                    | 🚧    | 🚧   | 🚧  |
@@ -53,3 +53,7 @@ Week 1 is complete. Week 2 is in progress.
 | 3.7            | Long Context                                                | 🚧    | 🚧   | 🚧  |
 
 Other topics not covered: quantized/compressed kv cache, prefix/prompt cache; sampling, fine tuning; smaller kernels (softmax, silu, etc)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=skyzh/tiny-llm&type=Date)](https://www.star-history.com/#skyzh/tiny-llm&Date)

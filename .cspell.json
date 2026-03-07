@@ -23,7 +23,15 @@
         "bfloat",
         "multihead",
         "vllm",
-        "silu"
+        "silu",
+        "GFLOPS",
+        "TFLOPS",
+        "dequantized",
+        "dequantization",
+        "dequantizes",
+        "dtype",
+        "threadgroups",
+        "threadgroup",
     ],
     "ignoreRegExpList": [
         "`[^`]*`",

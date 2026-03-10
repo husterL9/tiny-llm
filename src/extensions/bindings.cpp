@@ -3,8 +3,8 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/variant.h>
 
-#include "tiny_llm_ext.h"
 #include "axpby.h"
+#include "tiny_llm_ext.h"
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -31,4 +31,6 @@ NB_MODULE(_ext, m) {
         Returns:
             array: ``alpha * x + beta * y``
       )");
+    m.def("quantized_matmul", &tiny_llm_ext::quantized_matmul, "x"_a, "weight"_a, "scales"_a, "biases"_a,
+          "group_size"_a, "bits"_a, "transpose_b"_a = false, nb ::kw_only(), "stream"_a = nb::none());
 }

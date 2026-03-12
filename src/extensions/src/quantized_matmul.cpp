@@ -124,7 +124,7 @@ void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &inputs, std::vector
     std::ostringstream kname;
     kname << "quantized_matmul_";
     kname << type_to_name(out);
-    std::cout << "quantized_matmul kernel: " << kname.str() << std::endl;
+    // std::cout << "quantized_matmul kernel: " << kname.str() << std::endl;
     // Make a kernel from this metal library (use lib name overload)
     auto library = d.get_library("tiny_llm_ext");
     auto kernel = d.get_kernel(kname.str(), library);

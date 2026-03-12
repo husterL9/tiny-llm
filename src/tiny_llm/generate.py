@@ -60,6 +60,7 @@ def simple_generate_with_kv_cache(
     for i in range(model.args.num_hidden_layers):
         cache.append(TinyKvFullCache())
     ft=_step(model,inputs,offset,cache)
+    mx.eval(ft)
     if ft.item()==tokenizer.eos_token_id:
         return
     offset+=len(inputs)
@@ -70,6 +71,7 @@ def simple_generate_with_kv_cache(
        next_token = _step(model,inputs,offset,cache)
        offset+=1
        inputs = next_token
+       mx.eval(next_token)
        if next_token.item()==tokenizer.eos_token_id:
            break
        detokenizer.add_token(next_token.item())

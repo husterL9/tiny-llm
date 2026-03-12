@@ -52,7 +52,9 @@ def quantized_matmul(
     a = a.reshape(-1, D)
     a = mx.contiguous(a)
     b = mx.contiguous(b)
-    return tiny_llm_ext.quantized_matmul(a, b,scales, biases, group_size, bits,  transpose_b)
+    # scales = scales.astype(mx.float16)
+    # biases = biases.astype(mx.float16)
+    return tiny_llm_ext.quantized_matmul(a, b,scales, biases, group_size, bits,  True).reshape(*N, -1)
 
 
 def quantized_linear(

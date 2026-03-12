@@ -45,4 +45,5 @@ template <typename T>
 
 instantiate_quantized_matmul(float16, half);
 instantiate_quantized_matmul(bfloat16, bfloat16_t);
+instantiate_quantized_matmul(float32,float);
 // clang-format on

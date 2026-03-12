@@ -5,7 +5,7 @@ from .layer_norm import RMSNorm
 from .positional_encoding import RoPE
 from typing import Any, List
 from .embedding import Embedding
-from .quantize import dequantize_linear, QuantizedWeights
+from .quantize import dequantize_linear, QuantizedWeights,quantized_linear
 from .kv_cache import TinyKvCache
 
 
@@ -29,10 +29,10 @@ class Qwen2MultiHeadAttention:
         self.hidden_size=hidden_size
         self.num_heads=num_heads
         self.num_kv_heads=num_kv_heads
-        self.wq=dequantize_linear(wq)
-        self.wk=dequantize_linear(wk)
-        self.wv=dequantize_linear(wv)
-        self.wo=dequantize_linear(wo)
+        self.wq=wq
+        self.wk=wk
+        self.wv=wv
+        self.wo=wo
         self.bq=bq
         self.bk=bk
         self.bv=bv
@@ -49,9 +49,9 @@ class Qwen2MultiHeadAttention:
         mask: mx.array | str | None = None,
     ) -> mx.array:
         # x: B, L_Q, E
-        Q=linear(x,self.wq,self.bq)
-        K_new=linear(x,self.wk,self.bk)
-        V_new=linear(x,self.wv,self.bv)
+        Q=quantized_linear(x,self.wq,self.bq)
+        K_new=quantized_linear(x,self.wk,self.bk)
+        V_new=quantized_linear(x,self.wv,self.bv)
         D=self.hidden_size//self.num_heads
         q_shape=Q.shape
         E=q_shape[-1]
@@ -76,10 +76,13 @@ class Qwen2MultiHeadAttention:
         K = mx.swapaxes(K,-3, -2)
         V = mx.swapaxes(V,-3,-2)
          # (N...,H_q*n_repeat,L_Q,D)
-        attention= scaled_dot_product_attention_grouped(Q,K,V,mask=mask)
+        attention= scaled_dot_product_attention_grouped(Q.astype(mx.float32),
+                                                        K.astype(mx.float32),
+                                                        V.astype(mx.float32),
+                                                        mask=mask).astype(x.dtype)
         attention=mx.swapaxes(attention,-3,-2)
         attention=attention.reshape(*prefix,L_Q,E)
-        output=linear(attention, self.wo)
+        output=quantized_linear(attention, self.wo)
         return output
 
 
@@ -94,18 +97,18 @@ class Qwen2MLP:
     ):
         self.dim=dim
         self.hidden_dim=hidden_dim
-        self.w_gate=dequantize_linear(w_gate)
-        self.w_up=dequantize_linear(w_up)
-        self.w_down=dequantize_linear(w_down)
+        self.w_gate=w_gate
+        self.w_up=w_up
+        self.w_down=w_down
 
     def __call__(self, x: mx.array) -> mx.array:
         # x: N.. x L x E
-        x_gate=mx.matmul(x,mx.transpose(self.w_gate,[-1,-2]))
+        x_gate=quantized_linear(x,self.w_gate)
         # N.. x L x I
         silu_x_gate=silu(x_gate)
-        x_up=mx.matmul(x,mx.transpose(self.w_up,[-1,-2]))
+        x_up=quantized_linear(x,self.w_up)
         x_intermediate=x_up*silu_x_gate
-        output=mx.matmul(x_intermediate,mx.transpose(self.w_down,[-1,-2]))
+        output=quantized_linear(x_intermediate,self.w_down)
         return output
 
 
@@ -164,8 +167,10 @@ class Qwen2ModelWeek2:
         args=mlx_model.args
         self.args=args
         model=mlx_model.model
+        precision = mx.float16
+        self.precision = precision
         # self.embed_tokens_weight=QuantizedWeights.from_mlx_layer(model.embed_tokens)
-        self.embed_tokens_weight=dequantize_linear(mlx_model.model.embed_tokens)
+        self.embed_tokens_weight=dequantize_linear(mlx_model.model.embed_tokens).astype(precision)
         self.embedding=Embedding(args.vocab_size,args.hidden_size,self.embed_tokens_weight)
         self.layers_inner:List[Qwen2TransformerBlock] = []
         for i in range(mlx_model.args.num_hidden_layers):
@@ -191,8 +196,8 @@ class Qwen2ModelWeek2:
             w_down = QuantizedWeights.from_mlx_layer(
                 mlx_model.model.layers[i].mlp.down_proj
             )
-            w_input_layernorm=current_layer.input_layernorm.weight
-            w_post_attention_layernorm=current_layer.post_attention_layernorm.weight
+            w_input_layernorm=current_layer.input_layernorm.weight.astype(precision)
+            w_post_attention_layernorm=current_layer.post_attention_layernorm.weight.astype(precision)
             layer=Qwen2TransformerBlock(args.num_attention_heads,
                                         args.num_key_value_heads,
                                         args.hidden_size,
@@ -202,9 +207,9 @@ class Qwen2ModelWeek2:
                                         wk,
                                         wv,
                                         wo,
-                                        current_layer.self_attn.q_proj.bias,
-                                        current_layer.self_attn.k_proj.bias,
-                                        current_layer.self_attn.v_proj.bias,
+                                        current_layer.self_attn.q_proj.bias.astype(precision),
+                                        current_layer.self_attn.k_proj.bias.astype(precision),
+                                        current_layer.self_attn.v_proj.bias.astype(precision),
                                         w_gate,
                                         w_up,
                                         w_down,
@@ -216,13 +221,13 @@ class Qwen2ModelWeek2:
             self.layers_inner.append(layer)
         self.rMS_norm = RMSNorm(
             args.hidden_size,
-            weight=model.norm.weight,
+            weight=model.norm.weight.astype(precision),
             eps=args.rms_norm_eps,
         )
         if args.tie_word_embeddings is True:
             self.w_lm_head = None
         else:
-            self.w_lm_head = dequantize_linear(mlx_model.lm_head)
+            self.w_lm_head = QuantizedWeights.from_mlx_layer(mlx_model.lm_head)
 
     def __call__(
         self,
@@ -235,7 +240,7 @@ class Qwen2ModelWeek2:
             h = transformer_block(h,offset,mask="causal",cache=cache[i])
         h=self.rMS_norm(h)
         if self.w_lm_head is not None:
-            return linear(h, self.w_lm_head)
+            return quantized_linear(h, self.w_lm_head)
         else:
             return self.embedding.as_linear(h)
 

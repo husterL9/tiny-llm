@@ -65,8 +65,8 @@ void quantized_matmul_impl(const mx::array &x, const mx::array &weight, const mx
             size_t i = out_idx / K;
             size_t k = out_idx % K;
             for (size_t g = 0; g < num_groups; g++) {
-                T scale = static_cast<T>(scales_ptr[k * num_groups + g]);
-                T bias = static_cast<float>(biases_ptr[k * num_groups + g]);
+                float scale = static_cast<float>(scales_ptr[k * num_groups + g]);
+                float bias = static_cast<float>(biases_ptr[k * num_groups + g]);
                 for (size_t index_pack = 0; index_pack < packs_per_group; index_pack++) {
                     uint32_t packed_value = w_ptr[k * quantized_N + g * packs_per_group + index_pack];
                     for (size_t quantized_index = 0; quantized_index < 8; ++quantized_index) {
@@ -111,7 +111,7 @@ void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &inputs, std::vector
     auto &scales = inputs[2];
     auto &biases = inputs[3];
     auto &out = outputs[0];
-
+    out.set_data(mx::allocator::malloc(out.nbytes()));
     size_t nelem = out.size();
 
     // Each primitive carries the stream it should execute on
@@ -124,7 +124,7 @@ void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &inputs, std::vector
     std::ostringstream kname;
     kname << "quantized_matmul_";
     kname << type_to_name(out);
-
+    std::cout << "quantized_matmul kernel: " << kname.str() << std::endl;
     // Make a kernel from this metal library (use lib name overload)
     auto library = d.get_library("tiny_llm_ext");
     auto kernel = d.get_kernel(kname.str(), library);

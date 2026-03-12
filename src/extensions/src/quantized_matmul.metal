@@ -22,8 +22,8 @@ template <typename T>
     size_t packs_per_group = group_size_ / num_per_pack;
     float sum = 0;
     for (size_t g = 0; g < num_groups; g++) {
-        T scale = static_cast<T>(scales_ptr[k * num_groups + g]);
-        T bias = static_cast<float>(biases_ptr[k * num_groups + g]);
+        float scale = static_cast<T>(scales_ptr[k * num_groups + g]);
+        float bias = static_cast<float>(biases_ptr[k * num_groups + g]);
         for (size_t index_pack = 0; index_pack < packs_per_group; index_pack++) {
             uint32_t packed_value = w_ptr[k * quantized_N + g * packs_per_group + index_pack];
             for (size_t quantized_index = 0; quantized_index < 8; ++quantized_index) {

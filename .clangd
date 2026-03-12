@@ -1,0 +1,15 @@
+# --- metal-lsp:begin ---
+If:
+  PathMatch: .*\.metal
+
+CompileFlags:
+  Add:
+    - -xc++
+    - -std=c++17
+    - -Wno-unknown-attributes
+    - -Wno-reserved-user-defined-literal
+    - -include
+    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.3.0/headers/metal_compat.h
+    - -isystem
+    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.3.0/stubs
+# --- metal-lsp:end ---

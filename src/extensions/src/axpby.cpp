@@ -208,9 +208,7 @@ void Axpby::eval_gpu(const std::vector<mx::array> &inputs, std::vector<mx::array
 ///////////////////////////////////////////////////////////////////////////////
 
 /** Print primitive name and parameters */
-void Axpby::print(std::ostream &os) {
-    os << name() << "(alpha=" << alpha_ << ", beta=" << beta_ << ")";
-}
+void Axpby::print(std::ostream &os) { os << name() << "(alpha=" << alpha_ << ", beta=" << beta_ << ")"; }
 
 /** The Jacobian-vector product. */
 std::vector<mx::array> Axpby::jvp(const std::vector<mx::array> &primals, const std::vector<mx::array> &tangents,

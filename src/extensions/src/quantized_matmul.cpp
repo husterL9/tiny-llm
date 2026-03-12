@@ -104,9 +104,70 @@ void QuantizedMatmul::eval_cpu(const std::vector<mx::array> &inputs, std::vector
             throw std::runtime_error("Unsupported dtype for quantized_matmul");
     }
 };
-void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &, std::vector<mx::array> &) {
-    throw std::runtime_error("QuantizedMatmul GPU not implemented");
+void QuantizedMatmul::eval_gpu(const std::vector<mx::array> &inputs, std::vector<mx::array> &outputs) {
+    // Prepare inputs
+    auto &x = inputs[0];
+    auto &weight = inputs[1];
+    auto &scales = inputs[2];
+    auto &biases = inputs[3];
+    auto &out = outputs[0];
+
+    size_t nelem = out.size();
+
+    // Each primitive carries the stream it should execute on
+    // and each stream carries its device identifiers
+    auto &s = stream();
+    // We get the needed metal device using the stream
+    auto &d = mx::metal::device(s.device);
+
+    // Resolve name of kernel (corresponds to axpby.metal)
+    std::ostringstream kname;
+    kname << "quantized_matmul_";
+    kname << type_to_name(out);
+
+    // Make a kernel from this metal library (use lib name overload)
+    auto library = d.get_library("tiny_llm_ext");
+    auto kernel = d.get_kernel(kname.str(), library);
+
+    // Prepare to encode kernel
+    auto &compute_encoder = d.get_command_encoder(s.index);
+    compute_encoder.set_compute_pipeline_state(kernel);
+
+    // Encode input arrays to kernel
+    compute_encoder.set_input_array(x, 0);
+    compute_encoder.set_input_array(weight, 1);
+    compute_encoder.set_input_array(scales, 2);
+    compute_encoder.set_input_array(biases, 3);
+
+    // Encode output arrays to kernel
+    compute_encoder.set_output_array(out, 4);
+
+    // Encode group_size_ and bits_
+    compute_encoder.set_bytes(group_size_, 5);
+    compute_encoder.set_bytes(bits_, 6);
+
+    // We launch 1 thread for each input and make sure that the number of
+    // threads in any given threadgroup is not higher than the max allowed
+    size_t tgp_size = kernel->maxTotalThreadsPerThreadgroup();
+    const int tile_x = 32;
+    const int tile_y = tgp_size / tile_x;
+    // Fix the 3D size of each threadgroup (in terms of threads)
+    MTL::Size group_dims = MTL::Size(tile_x, tile_y, 1);
+    size_t M = x.shape()[0];
+    size_t N = x.shape()[1];
+    size_t K = weight.shape()[0];
+
+    compute_encoder.set_bytes(M, 7);
+    compute_encoder.set_bytes(N, 8);
+    compute_encoder.set_bytes(K, 9);
+    // Fix the 3D size of the launch grid (in terms of threads)
+    MTL::Size grid_dims = MTL::Size((M + tile_x - 1) / tile_x, (K + tile_y - 1) / tile_y, 1);
+
+    // Launch the grid with the given number of threads divided among
+    // the given threadgroups
+    compute_encoder.dispatch_threadgroups(grid_dims, group_dims);
 }
+
 /** Print primitive name and parameters */
 void QuantizedMatmul::print(std::ostream &os) {
     os << name() << "(group_size=" << group_size_ << ", bits=" << bits_ << ")";

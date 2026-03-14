@@ -9,7 +9,9 @@ CompileFlags:
     - -Wno-unknown-attributes
     - -Wno-reserved-user-defined-literal
     - -include
-    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.3.0/headers/metal_compat.h
+    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.4.0/headers/metal_compat.h
     - -isystem
-    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.3.0/stubs
+    - /Users/nivis/.vscode/extensions/rayanhtt.metal-lsp-1.4.0/stubs
+    - -I
+    - /Users/nivis/ai-infra/tiny-llm
 # --- metal-lsp:end ---

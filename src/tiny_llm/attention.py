@@ -148,7 +148,8 @@ def scaled_dot_product_attention_grouped(
         mask=causal_mask(L,S,dtype=query.dtype)
         mask = mask.reshape((1,) * (q_grouped.ndim - 2) + (L, S))
     else : 
-        mask=mask.reshape(*prefix,H,n_repeat,L,S)
+        mask = mx.broadcast_to(mask, (*prefix, H_q, L, S))
+        mask = mask.reshape(*prefix, H, n_repeat, L, S)
     attention=scaled_dot_product_attention_simple(q_grouped,k_broad,v_broad,scale,mask)
     attention=attention.reshape(*prefix,H*n_repeat,L,D)
     return attention

@@ -111,7 +111,7 @@ def causal_mask(L: int, S: int, dtype: mx.Dtype) -> mx.array:
     j = mx.arange(S).reshape((1, S))  # (1,S)
 
     allowed = j <= (i + offset)       # (L,S) boolean
-    neg_inf = mx.array(-mx.inf, dtype=dtype)
+    neg_inf = mx.array(-mx.inf, dtype=dtype) # 标量()
     zero = mx.array(0.0, dtype=dtype)
 
     return mx.where(allowed, zero, neg_inf)

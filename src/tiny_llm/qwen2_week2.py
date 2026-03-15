@@ -69,12 +69,13 @@ class Qwen2MultiHeadAttention:
         Q = self.rope(Q,offset=offset_slice)
         K_new = self.rope(K_new,offset=offset_slice)
         # K，V (B,  L_Q+L, num_kv_heads, D)   
-        K,V=cache.update_and_fetch(K_new,V_new)
+        Q = mx.swapaxes(Q, -3, -2) 
+        K_new = mx.swapaxes(K_new, -3, -2)
+        V_new = mx.swapaxes(V_new, -3, -2)
+        K,V,_,mask=cache.update_and_fetch(K_new,V_new,L_Q)
         # K与Q的维度L不同,Q是新的token，K是全部的
         assert E % self.num_heads == 0, f"E={E} must be divisible by h={self.num_heads}"
-        Q = mx.swapaxes(Q, -3, -2) 
-        K = mx.swapaxes(K,-3, -2)
-        V = mx.swapaxes(V,-3,-2)
+
          # (N...,H_q*n_repeat,L_Q,D)
         attention= scaled_dot_product_attention_grouped(Q.astype(mx.float32),
                                                         K.astype(mx.float32),

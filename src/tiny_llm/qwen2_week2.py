@@ -72,7 +72,8 @@ class Qwen2MultiHeadAttention:
         Q = mx.swapaxes(Q, -3, -2) 
         K_new = mx.swapaxes(K_new, -3, -2)
         V_new = mx.swapaxes(V_new, -3, -2)
-        K,V,_,mask=cache.update_and_fetch(K_new,V_new,L_Q)
+        # K,V,_,mask=cache.update_and_fetch(K_new,V_new,L_Q)
+        K,V,_,mask=cache.update_and_fetch(K_new, V_new, mask_length=L_Q, mask=mask)
         # K与Q的维度L不同,Q是新的token，K是全部的
         assert E % self.num_heads == 0, f"E={E} must be divisible by h={self.num_heads}"
 

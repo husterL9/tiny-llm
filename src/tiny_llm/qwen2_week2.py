@@ -68,7 +68,7 @@ class Qwen2MultiHeadAttention:
             offset_slice = [slice(int(o), int(o + L_Q)) for o in offsets]
         Q = self.rope(Q,offset=offset_slice)
         K_new = self.rope(K_new,offset=offset_slice)
-        # K，V (B,  L_Q+L, num_kv_heads, D)   
+        # K，V (B, num_kv_heads,  L_Q+L, D)   
         Q = mx.swapaxes(Q, -3, -2) 
         K_new = mx.swapaxes(K_new, -3, -2)
         V_new = mx.swapaxes(V_new, -3, -2)

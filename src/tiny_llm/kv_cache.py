@@ -88,7 +88,7 @@ class BatchingKvCache(TinyKvCache):
 
 
     def remove_request(self, id: int):
-        pass
+        self.kv_caches[id]=None
 
 
 class TinyKvFullCache(TinyKvCache):
